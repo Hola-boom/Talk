@@ -1,0 +1,670 @@
+<!DOCTYPE html><html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Talkverse</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(to right, #101926, #0f172a);
+      color: #e0e6ed;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    header {
+      background-color: #0d1424;
+      padding: 1rem;
+      text-align: center;
+      font-size: 1.8rem;
+      font-weight: bold;
+      color: #00bcd4;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+      letter-spacing: 1px;
+    }
+
+    .tab-buttons {
+      display: flex;
+      background-color: #19253b;
+      border-bottom: 2px solid #00bcd4;
+    }
+
+    .tab {
+      flex: 1;
+      text-align: center;
+      padding: 12px;
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      color: #ccc;
+      transition: all 0.3s ease;
+    }
+
+    .tab.active {
+      border-bottom: 3px solid #00bcd4;
+      background-color: #22304c;
+      color: #ffffff;
+    }
+
+    .tab-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem;
+      background: url('https://www.transparenttextures.com/patterns/cubes.png');
+      background-size: 200px;
+    }
+
+    .group-item,
+    .message {
+      border-radius: 12px;
+      padding: 10px 14px;
+      margin: 10px 0;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+      max-width: 70%;
+      word-wrap: break-word;
+    }
+
+    .group-item {
+      background-color: #1e2b45;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    .group-item:hover {
+      background-color: #2d3e62;
+    }
+
+    .message {
+      opacity: 0;
+      transform: translateY(10px);
+      animation: slideIn 0.3s ease forwards;
+      position: relative;
+    }
+
+    @keyframes slideIn {
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .fade-out {
+      animation: fadeOut 0.3s ease forwards;
+    }
+
+    @keyframes fadeOut {
+      from { opacity: 1; transform: scale(1); }
+      to { opacity: 0; transform: scale(0.8); }
+    }
+
+    .message.you {
+      background-color: #dcf8c6;
+      color: #000;
+      align-self: flex-end;
+      margin-left: auto;
+      text-align: right;
+      border-top-right-radius: 0;
+    }
+
+    .message.other {
+      background-color: #e1f0ff;
+      color: #000;
+      align-self: flex-start;
+      margin-right: auto;
+      text-align: left;
+      border-top-left-radius: 0;
+    }
+
+    .message .meta {
+      font-size: 11px;
+      opacity: 0.6;
+      margin-top: 6px;
+      display: block;
+    }
+
+    .message strong {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 4px;
+      color: #333;
+    }
+
+    .message.system {
+      background-color: #444;
+      color: #fff;
+      text-align: center;
+      font-style: italic;
+      max-width: 90%;
+      margin: 8px auto;
+      padding: 6px 12px;
+      border-radius: 10px;
+    }
+
+    .input-area {
+      display: flex;
+      padding: 12px;
+      background-color: #1e2b45;
+      border-top: 1px solid #2f3f5c;
+    }
+
+    input[type='text'] {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      border-radius: 6px;
+      background-color: #121a2e;
+      color: white;
+      outline: none;
+      font-size: 14px;
+    }
+
+    button {
+      margin-left: 10px;
+      padding: 10px 16px;
+      background-color: #00bcd4;
+      border: none;
+      border-radius: 6px;
+      color: #002f3f;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    button:hover {
+      background-color: #00acc1;
+    }
+
+    .group-actions {
+      margin-top: 6px;
+    }
+
+    .group-actions button {
+      margin-right: 6px;
+      background-color: #455a64;
+      color: white;
+    }
+
+    .group-actions button:hover {
+      background-color: #607d8b;
+    }
+
+    #typingIndicator {
+      font-size: 13px;
+      margin: 8px 0;
+      color: #9ec8e6;
+    }
+  </style>
+  </head>
+  <body>
+  <header>Talkverse</header>
+  <div class="tab-buttons">
+    <div class="tab active" onclick="switchTab('groups')" id="groups-tab">Groups</div>
+    <div class="tab" onclick="switchTab('chat')" id="chat-tab">Chat</div>
+    <div class="tab" onclick="switchTab('private')" id="private-tab">1:1 Chat</div>
+  </div>  <div id="groups" class="tab-content">
+    <input type="text" id="newGroupName" placeholder="Enter group name" />
+    <button onclick="createGroup()">Create Group</button>
+    <div id="groupList"></div>
+  </div>  <div id="chat" class="tab-content" style="display: none">
+    <h2 id="currentGroupName"></h2>
+    <p id="groupMembers"></p>
+    <div id="chatMessages" style="flex: 1; overflow-y: auto; max-height: 60vh;"></div>
+    <div id="typingIndicator"></div>
+    <div class="input-area">
+      <input type="text" id="messageInput" placeholder="Type your message..." oninput="setTyping(true)" />
+      <button onclick="sendMessage()">Send</button>
+    </div>
+  </div>  <div id="private" class="tab-content" style="display: none">
+    <input type="text" id="privateUser" placeholder="Enter username to chat" />
+    <button onclick="startPrivateChat()">Start Chat</button>
+    <h3 id="privateChatName"></h3>
+    <div id="privateMessages" style="flex: 1; overflow-y: auto; max-height: 60vh;"></div>
+    <div class="input-area">
+      <input type="text" id="privateInput" placeholder="Type a private message" />
+      <button onclick="sendPrivateMessage()">Send</button>
+    </div>
+  </div>
+  <script>
+const firebaseConfig = {
+  apiKey: "AIzaSyDuWXeF8rIlDrQluZo514FzarFIvIOrOrw",
+  authDomain: "talkverse-49451.firebaseapp.com",
+  databaseURL: "https://talkverse-49451-default-rtdb.firebaseio.com",
+  projectId: "talkverse-49451",
+  storageBucket: "talkverse-49451.appspot.com",
+  messagingSenderId: "953700215867",
+  appId: "1:953700215867:web:58540984c67dfa71ef401e"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const username = localStorage.getItem('tv_username') || prompt("Enter your name");
+localStorage.setItem('tv_username', username);
+
+let currentGroupId = null;
+let currentPrivateUser = null;
+let typingTimeout;
+
+const userStatusRef = db.ref('status/' + username);
+db.ref('.info/connected').on('value', snap => {
+  if (snap.val()) {
+    userStatusRef.onDisconnect().set({ state: 'offline', last_changed: Date.now() });
+    userStatusRef.set({ state: 'online', last_changed: Date.now() });
+  }
+});
+
+function switchTab(tab) {
+  ['groups', 'chat', 'private'].forEach(id => {
+    document.getElementById(id).style.display = (tab === id) ? 'block' : 'none';
+    document.getElementById(id + '-tab').classList.toggle('active', tab === id);
+  });
+}
+
+function createGroup() {
+  const name = document.getElementById('newGroupName').value.trim();
+  if (!name) return;
+  const groupRef = db.ref('groups').push();
+  groupRef.set({ name, creator: username });
+  db.ref(`groups/${groupRef.key}/members/${username}`).set(true);
+}
+
+function loadGroups() {
+  const list = document.getElementById('groupList');
+  db.ref('groups').on('value', snap => {
+    list.innerHTML = '';
+    snap.forEach(groupSnap => {
+      const group = groupSnap.val();
+      const key = groupSnap.key;
+      const div = document.createElement('div');
+      div.className = 'group-item';
+      div.innerHTML = `<strong>${group.name}</strong>`;
+      div.onclick = () => joinGroup(key, group.name);
+
+      const actions = document.createElement('div');
+      actions.className = 'group-actions';
+
+      const joinBtn = document.createElement('button');
+      joinBtn.textContent = 'Join';
+      joinBtn.onclick = (e) => {
+        e.stopPropagation();
+        db.ref(`groups/${key}/members/${username}`).set(true);
+      };
+      actions.appendChild(joinBtn);
+
+      if (group.creator === username) {
+        const editBtn = document.createElement('button');
+        editBtn.textContent = 'Edit';
+        editBtn.onclick = (e) => {
+          e.stopPropagation();
+          const newName = prompt("New group name:", group.name);
+          if (newName) db.ref(`groups/${key}/name`).set(newName);
+        };
+        const deleteBtn = document.createElement('button');
+        deleteBtn.textContent = 'Delete';
+        deleteBtn.onclick = (e) => {
+          e.stopPropagation();
+          if (confirm("Delete this group?")) db.ref(`groups/${key}`).remove();
+        };
+        actions.appendChild(editBtn);
+        actions.appendChild(deleteBtn);
+      } else {
+        const leaveBtn = document.createElement('button');
+        leaveBtn.textContent = 'Leave';
+        leaveBtn.onclick = (e) => {
+          e.stopPropagation();
+          db.ref(`groups/${key}/members/${username}`).remove();
+        };
+        actions.appendChild(leaveBtn);
+      }
+
+      div.appendChild(actions);
+      list.appendChild(div);
+    });
+  });
+}
+
+function joinGroup(key, name) {
+  currentGroupId = key;
+  db.ref(`groups/${key}/members/${username}`).set(true);
+  document.getElementById('currentGroupName').innerText = name;
+  document.getElementById('chatMessages').innerHTML = '';
+  switchTab('chat');
+  loadGroupMembers(key);
+  db.ref(`messages/${key}`).off();
+  db.ref(`messages/${key}`).on('child_added', snap => {
+    const msg = snap.val();
+    displayMessage(msg, snap.key);
+  });
+}
+
+function loadGroupMembers(groupId) {
+  db.ref(`groups/${groupId}/members`).once('value', snap => {
+    const members = snap.val() || {};
+    const memberNames = Object.keys(members);
+    const promises = memberNames.map(name =>
+      db.ref(`status/${name}`).once('value').then(statSnap => {
+        const status = statSnap.val();
+        const state = status?.state === 'online' ? '🟢 Online' : `⚫ Last seen ${timeAgo(status?.last_changed)}`;
+        const callBtn = name !== username ? ` <button style='margin-left:5px;' onclick="startCall('${name}')">📞</button>` : '';
+        return `👤 ${name} - ${state}${callBtn}`;
+      })
+    );
+    Promise.all(promises).then(results => {
+      document.getElementById('groupMembers').innerHTML = results.join('<br>');
+    });
+  });
+}
+
+function timeAgo(timestamp) {
+  if (!timestamp) return 'unknown';
+  const diff = Math.floor((Date.now() - timestamp) / 60000);
+  return diff < 1 ? 'just now' : `${diff} min ago`;
+}
+
+function sendMessage() {
+  const msg = document.getElementById('messageInput').value.trim();
+  if (!msg || !currentGroupId) return;
+  const messageRef = db.ref(`messages/${currentGroupId}`).push();
+  messageRef.set({ sender: username, text: msg, timestamp: Date.now(), status: 'sent' });
+  document.getElementById('messageInput').value = '';
+  setTyping(false);
+}
+
+function setTyping(state) {
+  if (!currentGroupId) return;
+  db.ref(`typing/${currentGroupId}/${username}`).set(state);
+  clearTimeout(typingTimeout);
+  if (state) {
+    typingTimeout = setTimeout(() => {
+      db.ref(`typing/${currentGroupId}/${username}`).remove();
+    }, 3000);
+  }
+}
+
+function displayMessage(msg, key) {
+  const container = document.getElementById('chatMessages');
+  const div = document.createElement('div');
+  const isYou = msg.sender === username;
+  div.className = 'message ' + (isYou ? 'you' : 'other');
+  const ticks = isYou ? `<span style='font-size:10px'>${msg.status === 'seen' ? '✓✓' : '✓'}</span>` : '';
+  div.innerHTML = `
+    <strong>${isYou ? 'You' : msg.sender}</strong>
+    <div>${msg.text} ${ticks}</div>
+    <span class="meta">${new Date(msg.timestamp).toLocaleTimeString()}</span>
+  `;
+
+  if (isYou) {
+    div.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      if (confirm('Delete this message?')) {
+        div.classList.add('fade-out');
+        setTimeout(() => {
+          db.ref(`messages/${currentGroupId}/${key}`).remove();
+          div.remove();
+        }, 300);
+      }
+    });
+  }
+
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+
+function startPrivateChat() {
+  currentPrivateUser = document.getElementById('privateUser').value.trim();
+  if (!currentPrivateUser || currentPrivateUser === username) return;
+  document.getElementById('privateChatName').innerText = `Chat with ${currentPrivateUser}`;
+  document.getElementById('privateMessages').innerHTML = '';
+  switchTab('private');
+  const id = [username, currentPrivateUser].sort().join('_');
+  db.ref('private/' + id).off();
+  db.ref('private/' + id).on('child_added', snap => {
+    const msg = snap.val();
+    const div = document.createElement('div');
+    div.className = 'message ' + (msg.sender === username ? 'you' : 'other');
+    div.innerHTML = `<strong>${msg.sender === username ? 'You' : msg.sender}</strong><div>${msg.text}</div><span class="meta">${new Date(msg.timestamp).toLocaleTimeString()}</span>`;
+    document.getElementById('privateMessages').appendChild(div);
+  });
+}
+
+function sendPrivateMessage() {
+  const text = document.getElementById('privateInput').value.trim();
+  if (!text || !currentPrivateUser) return;
+  const id = [username, currentPrivateUser].sort().join('_');
+  const ref = db.ref('private/' + id).push();
+  ref.set({ sender: username, text, timestamp: Date.now() });
+  document.getElementById('privateInput').value = '';
+}
+
+loadGroups();
+</script>
+
+<!-- ✅ CALLING SYSTEM --><audio id="ringtone" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg" preload="auto"></audio>
+
+<div id="incomingCall" class="call-popup">
+  <p id="callerName">📞 Incoming Call...</p>
+  <div class="popup-buttons">
+    <button onclick="acceptCall()">✅ Accept</button>
+    <button onclick="rejectCall()">❌ Reject</button>
+  </div>
+</div><div id="callContainer">
+  <video id="remoteVideo" autoplay playsinline></video>
+  <video id="localVideo" autoplay muted playsinline></video>
+  <div id="callControls">
+    <button onclick="endCall()">❌</button>
+    <button onclick="toggleMic()">🎤</button>
+    <button onclick="toggleCamera()">📷</button>
+  </div>
+</div><style>
+  #callContainer {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    background: rgba(10, 10, 20, 0.95);
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    backdrop-filter: blur(10px);
+    transition: all 0.4s ease;
+  }
+  #callContainer video {
+    width: 90%;
+    max-height: 40vh;
+    margin: 10px;
+    border-radius: 14px;
+    box-shadow: 0 0 12px rgba(0, 0, 0, 0.5);
+    background: black;
+  }
+  #callControls {
+    display: flex;
+    gap: 15px;
+    margin-top: 20px;
+  }
+  #callControls button {
+    padding: 10px 14px;
+    font-size: 20px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.1);
+    color: white;
+    box-shadow: 0 0 8px rgba(0,0,0,0.3);
+    backdrop-filter: blur(6px);
+    cursor: pointer;
+    transition: transform 0.2s;
+  }
+  #callControls button:hover {
+    transform: scale(1.1);
+  }
+  .call-popup {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(40, 40, 60, 0.95);
+    color: white;
+    padding: 18px 30px;
+    border-radius: 16px;
+    z-index: 10000;
+    box-shadow: 0 0 20px rgba(0,0,0,0.6);
+    animation: slideIn 0.4s ease;
+    text-align: center;
+  }
+  .popup-buttons {
+    margin-top: 10px;
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+  }
+  .popup-buttons button {
+    padding: 8px 18px;
+    font-size: 14px;
+    border: none;
+    border-radius: 10px;
+    background: #00bcd4;
+    color: #002f3f;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(100px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+</style><script>
+let localStream;
+let remoteStream;
+let peerConnection;
+let ringTimeout;
+let isCallActive = false;
+
+const config = {
+  iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+};
+
+const callRoomPath = `calls/incoming_${username}`;
+const callRef = db.ref(callRoomPath);
+
+callRef.on('value', snapshot => {
+  const data = snapshot.val();
+  if (data && data.offer && !peerConnection && !localStream && !isCallActive) {
+    isCallActive = true;
+    const from = data.from || 'Someone';
+    document.getElementById('callerName').innerText = `📞 Call from ${from}`;
+    document.getElementById('incomingCall').style.display = 'block';
+
+    const ring = document.getElementById('ringtone');
+    ring.currentTime = 0;
+    ring.play();
+
+    clearTimeout(ringTimeout);
+    ringTimeout = setTimeout(() => {
+      addSystemMessage(`❌ Missed call from ${from}`);
+      rejectCall();
+    }, 30000);
+  }
+});
+
+async function acceptCall() {
+  document.getElementById('incomingCall').style.display = 'none';
+  document.getElementById('ringtone').pause();
+  document.getElementById('ringtone').currentTime = 0;
+  addSystemMessage(`✅ You accepted the call`);
+  await answerCall();
+}
+
+function rejectCall() {
+  callRef.remove();
+  document.getElementById('incomingCall').style.display = 'none';
+  document.getElementById('ringtone').pause();
+  document.getElementById('ringtone').currentTime = 0;
+  isCallActive = false;
+  addSystemMessage(`❌ You rejected the call`);
+}
+
+async function answerCall() {
+  document.getElementById('callContainer').style.display = 'flex';
+  localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+  document.getElementById("localVideo").srcObject = localStream;
+  peerConnection = new RTCPeerConnection(config);
+  localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+  peerConnection.ontrack = (event) => {
+    remoteStream = event.streams[0];
+    document.getElementById("remoteVideo").srcObject = remoteStream;
+  };
+  const snapshot = await callRef.once("value");
+  const data = snapshot.val();
+  const offer = JSON.parse(data.offer);
+  await peerConnection.setRemoteDescription(offer);
+  const answer = await peerConnection.createAnswer();
+  await peerConnection.setLocalDescription(answer);
+  await callRef.update({ answer: JSON.stringify(answer) });
+  peerConnection.onicecandidate = (event) => {
+    if (event.candidate) {
+      callRef.child("calleeCandidates").push(JSON.stringify(event.candidate));
+    }
+  };
+}
+
+async function startCall(toUsername) {
+  const targetRef = db.ref(`calls/incoming_${toUsername}`);
+  document.getElementById("callContainer").style.display = "flex";
+  localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+  document.getElementById("localVideo").srcObject = localStream;
+  peerConnection = new RTCPeerConnection(config);
+  localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+  peerConnection.ontrack = (event) => {
+    remoteStream = event.streams[0];
+    document.getElementById("remoteVideo").srcObject = remoteStream;
+  };
+  const offer = await peerConnection.createOffer();
+  await peerConnection.setLocalDescription(offer);
+  await targetRef.set({ offer: JSON.stringify(offer), from: username });
+  targetRef.on("value", async (snapshot) => {
+    const data = snapshot.val();
+    if (data && data.answer && !peerConnection.currentRemoteDescription) {
+      const answer = JSON.parse(data.answer);
+      await peerConnection.setRemoteDescription(answer);
+    }
+  });
+  peerConnection.onicecandidate = (event) => {
+    if (event.candidate) {
+      targetRef.child("callerCandidates").push(JSON.stringify(event.candidate));
+    }
+  };
+}
+
+function endCall() {
+  if (peerConnection) peerConnection.close();
+  document.getElementById("callContainer").style.display = "none";
+  isCallActive = false;
+  addSystemMessage("📴 Call ended");
+}
+
+function toggleMic() {
+  const mic = localStream.getAudioTracks()[0];
+  mic.enabled = !mic.enabled;
+}
+
+function toggleCamera() {
+  const cam = localStream.getVideoTracks()[0];
+  cam.enabled = !cam.enabled;
+}
+
+function addSystemMessage(text) {
+  const container = document.getElementById('chatMessages');
+  const div = document.createElement('div');
+  div.className = 'message system';
+  div.innerHTML = `<div>${text}</div><span class="meta">${new Date().toLocaleTimeString()}</span>`;
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+</script>
+
+  <!-- ✅ END OF BODY -->
+  </body>
+</html>
